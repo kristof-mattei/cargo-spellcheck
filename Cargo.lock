@@ -312,6 +312,7 @@ dependencies = [
  "nlprule",
  "nlprule-build",
  "num_cpus",
+ "onig",
  "proc-macro2",
  "pulldown-cmark 0.10.3",
  "rayon",
