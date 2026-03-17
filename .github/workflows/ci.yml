@@ -177,7 +177,7 @@ jobs:
 
       - name: Install oniguruma
         shell: bash
-        run: apk add oniguruma
+        run: apk add oniguruma-dev
 
       - name: Download artifact
         uses: actions/download-artifact@v4
@@ -219,7 +219,7 @@ jobs:
 
       - name: Install oniguruma
         shell: bash
-        run: apk add oniguruma
+        run: apk add oniguruma-dev
 
       - name: Download artifact
         uses: actions/download-artifact@v4
