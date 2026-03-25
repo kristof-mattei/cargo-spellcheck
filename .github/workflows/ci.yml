@@ -13,6 +13,7 @@ concurrency:
 env:
   CARGO_TERM_COLOR: always
   RUST_BACKTRACE: full
+  VS_INSTALL_PATH: C:\Program Files\Microsoft Visual Studio\2022\Enterprise
 
 jobs:
   fmt:
@@ -60,6 +61,15 @@ jobs:
         shell: bash
         run: cargo build --release
 
+      - name: Verify no libonig dependency
+        shell: bash
+        run: |
+          readelf -d target/release/cargo-spellcheck
+          if readelf -d target/release/cargo-spellcheck | grep -q libonig; then
+            echo "ERROR: binary has a runtime dependency on libonig"
+            exit 1
+          fi
+
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
@@ -89,6 +99,15 @@ jobs:
       - name: Build
         shell: bash
         run: cargo build --release
+
+      - name: Verify no libonig dependency
+        shell: bash
+        run: |
+          readelf -d target/release/cargo-spellcheck
+          if readelf -d target/release/cargo-spellcheck | grep -q libonig; then
+            echo "ERROR: binary has a runtime dependency on libonig"
+            exit 1
+          fi
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
@@ -139,9 +158,31 @@ jobs:
       - name: Set up cache
         uses: Swatinem/rust-cache@v2
 
+      - name: Install oniguruma and force dynamic linking
+        shell: pwsh
+        run: |
+          vcpkg install oniguruma:arm64-windows pkgconf:arm64-windows
+          echo "PKG_CONFIG_PATH=C:\vcpkg\installed\arm64-windows\lib\pkgconfig" >> $env:GITHUB_ENV
+          echo "RUSTONIG_STATIC_LIBONIG=0" >> $env:GITHUB_ENV
+          echo "RUSTONIG_DYNAMIC_LIBONIG=1" >> $env:GITHUB_ENV
+
       - name: Build
         shell: pwsh
         run: cargo build --target aarch64-pc-windows-msvc
+
+      - name: Verify no oniguruma dependency
+        shell: pwsh
+        run: |
+          Import-Module "$env:VS_INSTALL_PATH\Common7\Tools\Microsoft.VisualStudio.DevShell.dll"
+          Enter-VsDevShell -VsInstallPath "$env:VS_INSTALL_PATH\" -SkipAutomaticLocation -DevCmdArguments "-arch=arm64"
+
+          $output=(dumpbin /dependents target\aarch64-pc-windows-msvc\debug\cargo-spellcheck.exe)
+
+          $output
+          if ($output | Select-String -Pattern "oniguruma" -Quiet) {
+            Write-Error "ERROR: binary has a runtime dependency on oniguruma.dll"
+            exit 1
+          }
 
   build-win-x86_64:
     name: Build (Windows x86_64, MSVC)
@@ -158,9 +199,31 @@ jobs:
       - name: Set up cache
         uses: Swatinem/rust-cache@v2
 
+      - name: Install oniguruma and force dynamic linking
+        shell: pwsh
+        run: |
+          vcpkg install oniguruma:x64-windows pkgconf:x64-windows
+          echo "PKG_CONFIG_PATH=C:\vcpkg\installed\x64-windows\lib\pkgconfig" >> $env:GITHUB_ENV
+          echo "RUSTONIG_STATIC_LIBONIG=0" >> $env:GITHUB_ENV
+          echo "RUSTONIG_DYNAMIC_LIBONIG=1" >> $env:GITHUB_ENV
+
       - name: Build
         shell: pwsh
         run: cargo build --target x86_64-pc-windows-msvc
+
+      - name: Verify no oniguruma dependency
+        shell: pwsh
+        run: |
+          Import-Module "$env:VS_INSTALL_PATH\Common7\Tools\Microsoft.VisualStudio.DevShell.dll"
+          Enter-VsDevShell -VsInstallPath "$env:VS_INSTALL_PATH\" -SkipAutomaticLocation -DevCmdArguments "-arch=x64"
+
+          $output=(dumpbin /dependents target\x86_64-pc-windows-msvc\debug\cargo-spellcheck.exe)
+
+          $output
+          if ($output | Select-String -Pattern "oniguruma" -Quiet) {
+            Write-Error "ERROR: binary has a runtime dependency on oniguruma.dll"
+            exit 1
+          }
 
   validate-spellcheck:
     name: Validate spellcheck
