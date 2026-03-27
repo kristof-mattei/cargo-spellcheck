@@ -51,14 +51,21 @@ jobs:
       - name: Set up toolchain
         uses: dtolnay/rust-toolchain@stable
 
-      - name: Set up cache
-        uses: Swatinem/rust-cache@v2
-
       - uses: ./.github/actions/install-clang
 
       - name: Build
         shell: bash
         run: cargo build --release
+
+      - name: Verify no libonig dependency
+        shell: bash
+        run: |
+          dynamic=$(readelf --dynamic target/release/cargo-spellcheck)
+          echo "${dynamic}"
+          if echo "${dynamic}" | grep -q libonig; then
+            echo "ERROR: binary has a runtime dependency on libonig"
+            exit 1
+          fi
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
@@ -81,14 +88,21 @@ jobs:
       - name: Set up toolchain
         uses: dtolnay/rust-toolchain@stable
 
-      - name: Set up cache
-        uses: Swatinem/rust-cache@v2
-
       - uses: ./.github/actions/install-clang
 
       - name: Build
         shell: bash
         run: cargo build --release
+
+      - name: Verify no libonig dependency
+        shell: bash
+        run: |
+          dynamic=$(readelf --dynamic target/release/cargo-spellcheck)
+          echo "${dynamic}"
+          if echo "${dynamic}" | grep -q libonig; then
+            echo "ERROR: binary has a runtime dependency on libonig"
+            exit 1
+          fi
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
@@ -110,9 +124,6 @@ jobs:
 
       - name: Set up toolchain
         uses: dtolnay/rust-toolchain@stable
-
-      - name: Set up cache
-        uses: Swatinem/rust-cache@v2
 
       - uses: ./.github/actions/install-clang
 
@@ -136,9 +147,6 @@ jobs:
       - name: Set up toolchain
         uses: dtolnay/rust-toolchain@stable
 
-      - name: Set up cache
-        uses: Swatinem/rust-cache@v2
-
       - name: Build
         shell: pwsh
         run: cargo build --target aarch64-pc-windows-msvc
@@ -154,9 +162,6 @@ jobs:
 
       - name: Set up toolchain
         uses: dtolnay/rust-toolchain@stable
-
-      - name: Set up cache
-        uses: Swatinem/rust-cache@v2
 
       - name: Build
         shell: pwsh
@@ -177,7 +182,7 @@ jobs:
 
       - name: Install oniguruma
         shell: bash
-        run: apk add oniguruma
+        run: apk add oniguruma-dev
 
       - name: Download artifact
         uses: actions/download-artifact@v4
@@ -219,7 +224,7 @@ jobs:
 
       - name: Install oniguruma
         shell: bash
-        run: apk add oniguruma
+        run: apk add oniguruma-dev
 
       - name: Download artifact
         uses: actions/download-artifact@v4
