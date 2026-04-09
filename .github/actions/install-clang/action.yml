@@ -12,4 +12,5 @@ runs:
       shell: bash
       run: |
         # ensure we statically link against libonig
-        echo "RUSTONIG_STATIC_LIBONIG=1" >> "${GITHUB_ENV}"
+        echo "RUSTONIG_STATIC_LIBONIG=0" >> "${GITHUB_ENV}"
+        echo "RUSTONIG_DYNAMIC_LIBONIG=1" >> "${GITHUB_ENV}"
