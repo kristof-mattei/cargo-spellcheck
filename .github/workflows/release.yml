@@ -11,11 +11,14 @@ env:
 
 jobs:
   build-linux-x86_64:
-    name: Build Linux binary (x86_64, GNU)
+    name: Build Linux binary (x86_64, musl)
     runs-on: ubuntu-latest
     container:
       image: cgr.dev/chainguard/rust:latest-dev
       options: --user root
+    env:
+      TARGET: x86_64-unknown-linux-musl
+      RUST_TOOLCHAIN: stable-x86_64-unknown-linux-gnu
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -25,32 +28,42 @@ jobs:
       - name: Set up toolchain
         uses: dtolnay/rust-toolchain@stable
         with:
-          targets: x86_64-unknown-linux-gnu
+          targets: ${{ env.TARGET }}
+
+      # See ci.yml: the chainguard rust:latest-dev image's system
+      # cargo/rustc shadow the rustup-managed toolchain on PATH, so we
+      # prepend the rustup toolchain bin directory.
+      - name: Prepend rustup toolchain to PATH
+        shell: bash
+        run: echo "${HOME}/.rustup/toolchains/${RUST_TOOLCHAIN}/bin" >> "${GITHUB_PATH}"
 
       - uses: ./.github/actions/install-clang
 
       - name: Build
         shell: bash
-        run: cargo build --release --target x86_64-unknown-linux-gnu
+        run: cargo build --release --target "${TARGET}"
 
       - name: Stage artifact
         shell: bash
         run: |
-          cp target/x86_64-unknown-linux-gnu/release/cargo-spellcheck \
-             "cargo-spellcheck-${{ github.ref_name }}-x86_64-unknown-linux-gnu"
+          cp "target/${TARGET}/release/cargo-spellcheck" \
+             "cargo-spellcheck-${{ github.ref_name }}-${TARGET}"
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
           name: linux-x86_64-binary
-          path: cargo-spellcheck-*-x86_64-unknown-linux-gnu
+          path: cargo-spellcheck-*-${{ env.TARGET }}
 
   build-linux-aarch64:
-    name: Build Linux binary (aarch64, GNU)
+    name: Build Linux binary (aarch64, musl)
     runs-on: ubuntu-24.04-arm
     container:
       image: cgr.dev/chainguard/rust:latest-dev
       options: --user root
+    env:
+      TARGET: aarch64-unknown-linux-musl
+      RUST_TOOLCHAIN: stable-aarch64-unknown-linux-gnu
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -59,24 +72,32 @@ jobs:
 
       - name: Set up toolchain
         uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ env.TARGET }}
+
+      # See ci.yml: the chainguard system cargo/rustc shadow the
+      # rustup-managed toolchain on PATH, so prepend the rustup bin dir.
+      - name: Prepend rustup toolchain to PATH
+        shell: bash
+        run: echo "${HOME}/.rustup/toolchains/${RUST_TOOLCHAIN}/bin" >> "${GITHUB_PATH}"
 
       - uses: ./.github/actions/install-clang
 
       - name: Build
         shell: bash
-        run: cargo build --release
+        run: cargo build --release --target "${TARGET}"
 
       - name: Stage artifact
         shell: bash
         run: |
-          cp target/release/cargo-spellcheck \
-             "cargo-spellcheck-${{ github.ref_name }}-aarch64-unknown-linux-gnu"
+          cp "target/${TARGET}/release/cargo-spellcheck" \
+             "cargo-spellcheck-${{ github.ref_name }}-${TARGET}"
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
           name: linux-aarch64-binary
-          path: cargo-spellcheck-*-aarch64-unknown-linux-gnu
+          path: cargo-spellcheck-*-${{ env.TARGET }}
 
   build-windows-x86_64:
     name: Build Windows binary (x86_64, MSVC)
@@ -174,7 +195,7 @@ jobs:
         with:
           name: cargo-spellcheck-${{ github.ref_name }}
           files: |
-            cargo-spellcheck-*-x86_64-unknown-linux-gnu
-            cargo-spellcheck-*-aarch64-unknown-linux-gnu
+            cargo-spellcheck-*-x86_64-unknown-linux-musl
+            cargo-spellcheck-*-aarch64-unknown-linux-musl
             cargo-spellcheck-*-x86_64-pc-windows-msvc.exe
             cargo-spellcheck-*-aarch64-pc-windows-msvc.exe
