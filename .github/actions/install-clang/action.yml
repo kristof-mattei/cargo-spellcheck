@@ -6,7 +6,7 @@ runs:
   steps:
     - name: Install build prerequisites
       shell: bash
-      run: apk add clang oniguruma-dev
+      run: apk add clang musl-gcc oniguruma-dev
 
     - name: Force rust-onig static linking
       shell: bash

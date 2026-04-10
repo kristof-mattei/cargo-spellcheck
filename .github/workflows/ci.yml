@@ -37,11 +37,14 @@ jobs:
         run: cargo fmt -- --check
 
   build:
-    name: Build (Linux x86_64, GNU)
+    name: Build (Linux x86_64, musl)
     runs-on: ubuntu-latest
     container:
       image: cgr.dev/chainguard/rust:latest-dev
       options: --user root
+    env:
+      TARGET: x86_64-unknown-linux-musl
+      RUST_TOOLCHAIN: stable-x86_64-unknown-linux-gnu
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -50,17 +53,27 @@ jobs:
 
       - name: Set up toolchain
         uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ env.TARGET }}
+
+      # The chainguard rust:latest-dev image ships its own cargo/rustc on
+      # PATH which shadow the rustup-managed toolchain that dtolnay just
+      # installed. Prepend the rustup toolchain's bin directory so we pick
+      # up the rustup install (which is the one that has the musl target).
+      - name: Prepend rustup toolchain to PATH
+        shell: bash
+        run: echo "${HOME}/.rustup/toolchains/${RUST_TOOLCHAIN}/bin" >> "${GITHUB_PATH}"
 
       - uses: ./.github/actions/install-clang
 
       - name: Build
         shell: bash
-        run: cargo build --release
+        run: cargo build --release --target "${TARGET}"
 
       - name: Verify no libonig dependency
         shell: bash
         run: |
-          dynamic=$(readelf --dynamic target/release/cargo-spellcheck)
+          dynamic=$(readelf --dynamic "target/${TARGET}/release/cargo-spellcheck")
           echo "${dynamic}"
           if echo "${dynamic}" | grep -q libonig; then
             echo "ERROR: binary has a runtime dependency on libonig"
@@ -71,14 +84,17 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: cargo-spellcheck-linux-x86_64
-          path: target/release/cargo-spellcheck
+          path: target/${{ env.TARGET }}/release/cargo-spellcheck
 
   build-aarch64-linux:
-    name: Build (Linux aarch64, GNU)
+    name: Build (Linux aarch64, musl)
     runs-on: ubuntu-24.04-arm
     container:
       image: cgr.dev/chainguard/rust:latest-dev
       options: --user root
+    env:
+      TARGET: aarch64-unknown-linux-musl
+      RUST_TOOLCHAIN: stable-aarch64-unknown-linux-gnu
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -87,17 +103,25 @@ jobs:
 
       - name: Set up toolchain
         uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ env.TARGET }}
+
+      # See note in the x86_64 musl job: the chainguard system cargo/rustc
+      # shadow the rustup-managed toolchain, so prepend the rustup bin dir.
+      - name: Prepend rustup toolchain to PATH
+        shell: bash
+        run: echo "${HOME}/.rustup/toolchains/${RUST_TOOLCHAIN}/bin" >> "${GITHUB_PATH}"
 
       - uses: ./.github/actions/install-clang
 
       - name: Build
         shell: bash
-        run: cargo build --release
+        run: cargo build --release --target "${TARGET}"
 
       - name: Verify no libonig dependency
         shell: bash
         run: |
-          dynamic=$(readelf --dynamic target/release/cargo-spellcheck)
+          dynamic=$(readelf --dynamic "target/${TARGET}/release/cargo-spellcheck")
           echo "${dynamic}"
           if echo "${dynamic}" | grep -q libonig; then
             echo "ERROR: binary has a runtime dependency on libonig"
@@ -108,7 +132,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: cargo-spellcheck-linux-aarch64
-          path: target/release/cargo-spellcheck
+          path: target/${{ env.TARGET }}/release/cargo-spellcheck
 
   test:
     name: Unit tests
